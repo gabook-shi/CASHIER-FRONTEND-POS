@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>POS Checkout</title>
   <style>
-    body { font-family: Arial; margin: 20px; }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { display: flex; align-items: center; }
+    h1 span { margin-left: 10px; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
     button { margin-top: 20px; padding: 10px 20px; font-size: 16px; }
@@ -12,49 +14,72 @@
   </style>
 </head>
 <body>
-  <h1>💻 POS Checkout</h1>
+  <h1>💻 <span>POS Checkout</span></h1>
   <div id="cart">Loading basket...</div>
   <button id="confirmBtn" disabled>Confirm Payment</button>
   <div id="status"></div>
 
   <script>
+    // Get basket ID from URL query string
     const urlParams = new URLSearchParams(window.location.search);
     const basketId = urlParams.get("basket");
 
     async function loadBasket() {
-      const res = await fetch(`https://sabrina-backend-1-jxzk.onrender.com/getBasket/${basketId}`);
-      const data = await res.json();
+      try {
+        const res = await fetch(`https://sabrina-backend-1-jxzk.onrender.com/getBasket/${basketId}`);
+        const data = await res.json();
 
-      if (!Array.isArray(data) || data.length === 0) {
-        document.getElementById("cart").innerHTML = "🛒 Basket is empty.";
-        return;
+        if (!Array.isArray(data) || data.length === 0) {
+          document.getElementById("cart").innerHTML = "🛒 Basket is empty.";
+          return;
+        }
+
+        let html = "<table><tr><th>Item</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr>";
+        let total = 0;
+        data.forEach(item => {
+          let subtotal = item.price * item.quantity;
+          total += subtotal;
+          html += `<tr>
+            <td>${item.display_id}</td>
+            <td>₱${item.price.toFixed(2)}</td>
+            <td>${item.quantity}</td>
+            <td>₱${subtotal.toFixed(2)}</td>
+          </tr>`;
+        });
+        html += `<tr><td colspan="3"><strong>Total</strong></td><td><strong>₱${total.toFixed(2)}</strong></td></tr>`;
+        html += "</table>";
+        document.getElementById("cart").innerHTML = html;
+
+        document.getElementById("confirmBtn").disabled = false;
+      } catch (err) {
+        document.getElementById("cart").innerHTML = "⚠️ Error loading basket.";
+        console.error(err);
       }
-
-      let html = "<table><tr><th>Item</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr>";
-      let total = 0;
-      data.forEach(item => {
-        let subtotal = item.price * item.quantity;
-        total += subtotal;
-        html += `<tr>
-          <td>${item.display_id}</td>
-          <td>₱${item.price.toFixed(2)}</td>
-          <td>${item.quantity}</td>
-          <td>₱${subtotal.toFixed(2)}</td>
-        </tr>`;
-      });
-      html += `<tr><td colspan="3"><strong>Total</strong></td><td><strong>₱${total.toFixed(2)}</strong></td></tr>`;
-      html += "</table>";
-      document.getElementById("cart").innerHTML = html;
-
-      document.getElementById("confirmBtn").disabled = false;
     }
 
     async function confirmPayment() {
-      const res = await fetch(`https://sabrina-backend-1-jxzk.onrender.com/checkoutBasket/${basketId}`, {
-        method: "POST"
-      });
-      const result = await res.json();
+      try {
+        const res = await fetch(`https://sabrina-backend-1-jxzk.onrender.com/checkoutBasket/${basketId}`, {
+          method: "POST"
+        });
+        const result = await res.json();
 
-      if (result.status === "checked out") {
-        document.getElementById("status").innerHTML = "✅ Transaction complete. Basket reset.";
-        document.getElement
+        if (result.status === "checked out") {
+          document.getElementById("status").innerHTML = "✅ Transaction complete. Basket reset.";
+          document.getElementById("cart").innerHTML = "";
+          document.getElementById("confirmBtn").disabled = true;
+        } else {
+          document.getElementById("status").innerHTML = "⚠️ Error: " + (result.error || "Unknown");
+        }
+      } catch (err) {
+        document.getElementById("status").innerHTML = "⚠️ Error confirming payment.";
+        console.error(err);
+      }
+    }
+
+    document.getElementById("confirmBtn").addEventListener("click", confirmPayment);
+    loadBasket();
+  </script>
+</body>
+</html>
+
