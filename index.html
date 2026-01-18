@@ -30,7 +30,7 @@
         const data = await res.json();
 
         if (!Array.isArray(data) || data.length === 0) {
-          document.getElementById("cart").innerHTML = "🛒 Basket is empty.";
+          document.getElementById("cart").innerHTML = "🛒 Awaiting Basket to be Scanned.";
           return;
         }
 
