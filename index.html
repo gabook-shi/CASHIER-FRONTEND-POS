@@ -154,85 +154,126 @@
   <div id="toast" class="toast">✅ Transaction Complete!</div>
 
   <script>
-    let currentBasket = null;
+  const backend = "https://sabrina-backend-mwqy.onrender.com";
 
-    // Process scanned QR JSON string
-    function processScan(scannedString) {
-      try {
-        currentBasket = JSON.parse(scannedString);
+  let currentBasketId = null;
 
-        const basketContainer = document.getElementById("basket");
-        basketContainer.innerHTML = "";
-        let total = 0;
+  /**
+   * Called by QR scanner
+   * QR DATA = basketId only
+   */
+  async function processScan(scannedString) {
+    try {
+      currentBasketId = scannedString.trim();
 
-        currentBasket.items.forEach(item => {
-          total += item.price * item.quantity;
+      const res = await fetch(`${backend}/basket/${currentBasketId}`);
+      const basket = await res.json();
 
-          const card = document.createElement("div");
-          card.className = "basket-card";
-
-          const icon = document.createElement("div");
-          icon.className = "product-icon";
-          if (item.display_id.includes("MILK")) icon.textContent = "🥛";
-          else if (item.display_id.includes("BREAD")) icon.textContent = "🍞";
-          else if (item.display_id.includes("EGGS")) icon.textContent = "🥚";
-          else icon.textContent = "📦";
-
-          const info = document.createElement("div");
-          info.className = "product-info";
-          info.innerHTML = `<h3>${item.display_id}</h3><p>₱${item.price} x ${item.quantity}</p>`;
-
-          card.appendChild(icon);
-          card.appendChild(info);
-          basketContainer.appendChild(card);
-        });
-
-        document.getElementById("total").textContent = `Total: ₱${total}`;
-        showToast("🛒 Basket loaded from QR!");
-      } catch (err) {
-        console.error("Invalid QR data:", err);
-        showToast("❌ Invalid QR scan");
+      if (!basket || !Array.isArray(basket.items)) {
+        throw new Error("Invalid basket");
       }
+
+      renderBasket(basket.items);
+      showToast("🧾 Basket loaded");
+    } catch (err) {
+      console.error(err);
+      showToast("❌ Invalid QR");
     }
+  }
 
-    async function confirmPayment() {
-      if (!currentBasket) return showToast("❌ No basket loaded");
+  function renderBasket(items) {
+    const basketContainer = document.getElementById("basket");
+    basketContainer.innerHTML = "";
 
-      try {
-        const response = await fetch(`https://sabrina-backend-1-jxzk.onrender.com/basket/checkout`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ basket_id: currentBasket.basket_id })
-        });
-        const result = await response.json();
-        console.log(result);
+    let total = 0;
 
-        showToast("✅ Transaction Complete!");
-        setTimeout(() => {
-          window.location.href = window.location.pathname; // reload POS page
-        }, 3000);
-      } catch (err) {
-        showToast("❌ Error confirming payment");
-        console.error(err);
-      }
+    items.forEach(item => {
+      total += item.itemPrice;
+
+      const card = document.createElement("div");
+      card.className = "basket-card";
+
+      const icon = document.createElement("div");
+      icon.className = "product-icon";
+      icon.textContent = "📦";
+
+      const info = document.createElement("div");
+      info.className = "product-info";
+      info.innerHTML = `
+        <h3>${item.itemName}</h3>
+        <p>₱${item.itemPrice}</p>
+      `;
+
+      card.appendChild(icon);
+      card.appendChild(info);
+      basketContainer.appendChild(card);
+    });
+
+    document.getElementById("total").textContent = `Total: ₱${total}`;
+  }
+
+  async function confirmPayment() {
+    if (!currentBasketId) return showToast("❌ No basket loaded");
+
+    try {
+      await fetch(`${backend}/basket/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          basketId: currentBasketId,
+          paid: true
+        })
+      });
+
+      showToast("✅ Payment confirmed");
+      resetPOS();
+    } catch (err) {
+      console.error(err);
+      showToast("❌ Payment failed");
     }
+  }
 
-    function cancelPayment() {
-      showToast("❌ Payment cancelled");
+  async function cancelPayment() {
+    if (!currentBasketId) return showToast("❌ No basket loaded");
+
+    try {
+      await fetch(`${backend}/basket/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          basketId: currentBasketId,
+          paid: false
+        })
+      });
+
+      showToast("❌ Transaction cancelled");
+      resetPOS();
+    } catch (err) {
+      console.error(err);
+      showToast("❌ Cancel failed");
     }
+  }
 
-    function showToast(message) {
-      const toast = document.getElementById("toast");
-      toast.textContent = message;
-      toast.className = "toast show";
-      setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
-    }
+  function resetPOS() {
+    setTimeout(() => {
+      currentBasketId = null;
+      document.getElementById("basket").innerHTML = "";
+      document.getElementById("total").textContent = "Total: ₱0";
+    }, 2000);
+  }
 
-    // Example: simulate scanner input (replace with actual scanner integration)
-    // In practice, the scanner will "type" the JSON string into an input field.
-    // For testing:
-    // processScan('{"basket_id":"basket00188","items":[{"display_id":"MILK001","price":45,"quantity":1}]}');
-  </script>
-</body>
-</html>
+  function showToast(message) {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.className = "toast show";
+    setTimeout(() => {
+      toast.className = toast.className.replace("show", "");
+    }, 3000);
+  }
 
+  /**
+   * TESTING ONLY
+   * Uncomment to simulate QR scan
+   */
+  // processScan("basket00188");
+</script>
