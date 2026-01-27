@@ -194,17 +194,24 @@
   }
 
   async function confirmPayment() {
-    if (!currentBasketId) return showToast("❌ No basket");
+  if (!currentBasketId) return showToast("❌ No basket");
 
-    await fetch(`${backend}/basket/decision`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ basketId: currentBasketId, paid: true })
-    });
+  await fetch(`${backend}/basket/decision`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ basketId: currentBasketId, paid: true })
+  });
 
-    showToast("✅ Payment confirmed");
-    resetPOS();
-  }
+  // Clear basket for next customer
+  await fetch(`${backend}/basket/update`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ basketId: currentBasketId, uids: [] })
+  });
+
+  showToast("✅ Payment confirmed");
+  resetPOS();
+}
 
   async function cancelPayment() {
     if (!currentBasketId) return showToast("❌ No basket");
