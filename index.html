@@ -3,15 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <title>Cashier POS</title>
-  <!-- Viewport for mobile scaling -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- Camera QR Scanner -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
   <style>
     body {
       font-family: 'Poppins', sans-serif;
       background: #f4f6f9;
       margin: 0;
-      padding: 0;
     }
     header {
       background: #343a40;
@@ -21,6 +24,10 @@
       font-size: 20px;
       font-weight: 600;
     }
+    #scanner {
+      max-width: 360px;
+      margin: 15px auto;
+    }
     .basket-container {
       max-width: 600px;
       margin: 20px auto;
@@ -28,10 +35,9 @@
     }
     .basket-card {
       display: flex;
-      align-items: center;
       background: white;
       padding: 15px;
-      margin: 10px 0;
+      margin-bottom: 10px;
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
@@ -39,21 +45,11 @@
       font-size: 28px;
       margin-right: 15px;
     }
-    .product-info h3 {
-      margin: 0;
-      font-weight: 600;
-      font-size: 16px;
-    }
-    .product-info p {
-      margin: 3px 0 0;
-      color: #555;
-    }
     footer {
       position: fixed;
       bottom: 0;
-      left: 0;
-      right: 0;
-      background: #fff;
+      width: 100%;
+      background: white;
       padding: 15px;
       box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
       display: flex;
@@ -65,102 +61,85 @@
       font-weight: 600;
     }
     .btn {
-      padding: 12px 20px;
+      padding: 12px 18px;
       border: none;
       border-radius: 8px;
       font-size: 16px;
       cursor: pointer;
-      transition: 0.3s;
-      margin-left: 10px;
     }
     .btn-confirm {
       background: #28a745;
       color: white;
     }
-    .btn-confirm:hover {
-      background: #218838;
-    }
     .btn-cancel {
       background: #dc3545;
       color: white;
     }
-    .btn-cancel:hover {
-      background: #c82333;
-    }
-    /* Toast notification */
     .toast {
       visibility: hidden;
-      min-width: 250px;
-      background-color: #28a745;
+      background: #007bff;
       color: white;
-      text-align: center;
+      padding: 14px;
       border-radius: 8px;
-      padding: 16px;
       position: fixed;
-      z-index: 9999;
+      bottom: 80px;
       left: 50%;
-      bottom: 30px;
       transform: translateX(-50%);
-      font-size: 16px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      z-index: 9999;
     }
     .toast.show {
       visibility: visible;
-      animation: fadein 0.5s, fadeout 0.5s 2.5s;
-    }
-    @keyframes fadein {
-      from {bottom: 0; opacity: 0;}
-      to {bottom: 30px; opacity: 1;}
-    }
-    @keyframes fadeout {
-      from {bottom: 30px; opacity: 1;}
-      to {bottom: 0; opacity: 0;}
-    }
-    /* Mobile responsiveness */
-    @media (max-width: 480px) {
-      .basket-card {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-      .product-icon {
-        margin-bottom: 8px;
-      }
-      footer {
-        flex-direction: column;
-        text-align: center;
-      }
-      .btn {
-        margin: 8px 0;
-        width: 100%;
-      }
-      .total {
-        margin-bottom: 10px;
-      }
     }
   </style>
 </head>
+
 <body>
-  <header>💳 Cashier POS</header>
-  <div class="basket-container" id="basket"></div>
-  <footer>
-    <div class="total" id="total">Total: ₱0</div>
-    <div>
-      <button class="btn btn-confirm" onclick="confirmPayment()">Confirm Payment</button>
-      <button class="btn btn-cancel" onclick="cancelPayment()">Cancel</button>
-    </div>
-  </footer>
+<header>💳 Cashier POS</header>
 
-  <!-- Toast notification -->
-  <div id="toast" class="toast">✅ Transaction Complete!</div>
+<!-- CAMERA SCANNER -->
+<div id="scanner"></div>
 
-  <script>
+<div class="basket-container" id="basket"></div>
+
+<footer>
+  <div class="total" id="total">Total: ₱0</div>
+  <div>
+    <button class="btn btn-confirm" onclick="confirmPayment()">Confirm</button>
+    <button class="btn btn-cancel" onclick="cancelPayment()">Cancel</button>
+  </div>
+</footer>
+
+<div id="toast" class="toast">Ready</div>
+
+<script>
   const backend = "https://sabrina-backend-mwqy.onrender.com";
 
   let currentBasketId = null;
+  let qrScanner = null;
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2500);
+  }
+
+  function startScanner() {
+    qrScanner = new Html5Qrcode("scanner");
+    qrScanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 250 },
+      onScanSuccess
+    );
+  }
+
+  async function onScanSuccess(decodedText) {
+    qrScanner.stop();
+    processScan(decodedText);
+  }
 
   /**
-   * Called by QR scanner
-   * QR DATA = basketId only
+   * QR contains basketId only
    */
   async function processScan(scannedString) {
     try {
@@ -175,9 +154,11 @@
 
       renderBasket(basket.items);
       showToast("🧾 Basket loaded");
+
     } catch (err) {
       console.error(err);
       showToast("❌ Invalid QR");
+      startScanner();
     }
   }
 
@@ -198,10 +179,9 @@
       icon.textContent = "📦";
 
       const info = document.createElement("div");
-      info.className = "product-info";
       info.innerHTML = `
-        <h3>${item.itemName}</h3>
-        <p>₱${item.itemPrice}</p>
+        <strong>${item.itemName}</strong><br>
+        ₱${item.itemPrice}
       `;
 
       card.appendChild(icon);
@@ -213,45 +193,29 @@
   }
 
   async function confirmPayment() {
-    if (!currentBasketId) return showToast("❌ No basket loaded");
+    if (!currentBasketId) return showToast("❌ No basket");
 
-    try {
-      await fetch(`${backend}/basket/decision`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          basketId: currentBasketId,
-          paid: true
-        })
-      });
+    await fetch(`${backend}/basket/decision`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ basketId: currentBasketId, paid: true })
+    });
 
-      showToast("✅ Payment confirmed");
-      resetPOS();
-    } catch (err) {
-      console.error(err);
-      showToast("❌ Payment failed");
-    }
+    showToast("✅ Payment confirmed");
+    resetPOS();
   }
 
   async function cancelPayment() {
-    if (!currentBasketId) return showToast("❌ No basket loaded");
+    if (!currentBasketId) return showToast("❌ No basket");
 
-    try {
-      await fetch(`${backend}/basket/decision`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          basketId: currentBasketId,
-          paid: false
-        })
-      });
+    await fetch(`${backend}/basket/decision`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ basketId: currentBasketId, paid: false })
+    });
 
-      showToast("❌ Transaction cancelled");
-      resetPOS();
-    } catch (err) {
-      console.error(err);
-      showToast("❌ Cancel failed");
-    }
+    showToast("❌ Transaction cancelled");
+    resetPOS();
   }
 
   function resetPOS() {
@@ -259,21 +223,11 @@
       currentBasketId = null;
       document.getElementById("basket").innerHTML = "";
       document.getElementById("total").textContent = "Total: ₱0";
-    }, 2000);
+      startScanner();
+    }, 1500);
   }
 
-  function showToast(message) {
-    const toast = document.getElementById("toast");
-    toast.textContent = message;
-    toast.className = "toast show";
-    setTimeout(() => {
-      toast.className = toast.className.replace("show", "");
-    }, 3000);
-  }
-
-  /**
-   * TESTING ONLY
-   * Uncomment to simulate QR scan
-   */
-  // processScan("basket00188");
+  startScanner();
 </script>
+</body>
+</html>
