@@ -154,11 +154,11 @@
       }
 
       renderBasket(basket.items);
-      showToast("🧾 Basket loaded");
+      showToast("Basket loaded");
 
     } catch (err) {
       console.error(err);
-      showToast("❌ Invalid QR");
+      showToast("Invalid QR");
       startScanner();
     }
   }
@@ -194,7 +194,7 @@
   }
 
   async function confirmPayment() {
-  if (!currentBasketId) return showToast("❌ No basket");
+  if (!currentBasketId) return showToast("No basket");
 
   await fetch(`${backend}/basket/decision`, {
     method: "POST",
@@ -209,12 +209,12 @@
     body: JSON.stringify({ basketId: currentBasketId, uids: [] })
   });
 
-  showToast("✅ Payment confirmed");
+  showToast("Payment confirmed");
   resetPOS();
 }
 
   async function cancelPayment() {
-    if (!currentBasketId) return showToast("❌ No basket");
+    if (!currentBasketId) return showToast("No basket");
 
     await fetch(`${backend}/basket/decision`, {
       method: "POST",
@@ -222,7 +222,7 @@
       body: JSON.stringify({ basketId: currentBasketId, paid: false })
     });
 
-    showToast("❌ Transaction cancelled");
+    showToast("Transaction cancelled");
     resetPOS();
   }
 
