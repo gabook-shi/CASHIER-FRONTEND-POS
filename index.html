@@ -164,34 +164,35 @@
   }
 
   function renderBasket(items) {
-    const basketContainer = document.getElementById("basket");
-    basketContainer.innerHTML = "";
+  const basketContainer = document.getElementById("basket");
+  basketContainer.innerHTML = "";
 
-    let total = 0;
+  let total = 0;
 
-    items.forEach(item => {
-      total += item.itemPrice;
+  items.forEach(item => {
+    // ✅ Multiply unit price by quantity
+    total += item.itemPrice * item.quantity;
 
-      const card = document.createElement("div");
-      card.className = "basket-card";
+    const card = document.createElement("div");
+    card.className = "basket-card";
 
-      const icon = document.createElement("div");
-      icon.className = "product-icon";
-      icon.textContent = "📦";
+    const icon = document.createElement("div");
+    icon.className = "product-icon";
+    icon.textContent = "📦";
 
-      const info = document.createElement("div");
-      info.innerHTML = `
-        <strong>${item.itemName}</strong><br>
-        ₱${item.itemPrice}
-      `;
+    const info = document.createElement("div");
+    info.innerHTML = `
+      <strong>${item.itemName}</strong><br>
+      ₱${item.itemPrice} × ${item.quantity} = ₱${item.itemPrice * item.quantity}
+    `;
 
-      card.appendChild(icon);
-      card.appendChild(info);
-      basketContainer.appendChild(card);
-    });
+    card.appendChild(icon);
+    card.appendChild(info);
+    basketContainer.appendChild(card);
+  });
 
-    document.getElementById("total").textContent = `Total: ₱${total}`;
-  }
+  document.getElementById("total").textContent = `Total: ₱${total}`;
+}
 
   async function confirmPayment() {
   if (!currentBasketId) return showToast("No basket");
